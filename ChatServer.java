@@ -109,7 +109,7 @@ class InSocketThread implements Runnable {
 							continue;
 						}
 						// Add User to registered users list
-						if (ServerChat.userSocketMap.get(username) != null){
+						if (ServerChat.userSocketMap.get(username) == null){
 							UserSockets newUser = new UserSockets(connectionSocket, null);
 							ServerChat.userSocketMap.put(username, newUser);
 						}else{
