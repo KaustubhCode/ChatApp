@@ -4,8 +4,10 @@ import java.util.HashMap;
 import java.util.concurrent.ConcurrentHashMap;
 
 class ServerChat {
-	static ConcurrentHashMap<String, UserSockets> userSocketMap =  new ConcurrentHashMap<>();	
+	// Global HashMap to keep track of Socket Objects
+	static ConcurrentHashMap<String, UserData> userSocketMap =  new ConcurrentHashMap<>();	
 	
+	// Create 2 threads for 2 TCP connections
 	public static void main(String argv[]) throws Exception {
 		InConnections inConnThreadGen = new InConnections();
 		OutConnections outConnThreadGen = new OutConnections();
@@ -13,23 +15,6 @@ class ServerChat {
 		Thread outThread = new Thread(outConnThreadGen);
 		inThread.start();
 		outThread.start();
-		/*
-		ServerSocket inSocket = new ServerSocket(51234); 
-		ServerSocket outSocket = new ServerSocket(51235); 
-		while(true) { 
-			Socket connectionSocket = inSocket.accept(); 
-			BufferedReader inFromClient = 
-			new BufferedReader(new
-			InputStreamReader(connectionSocket.getInputStream())); 
-
-			DataOutputStream outToClient = 
-			new DataOutputStream(connectionSocket.getOutputStream()); 
-
-			SocketThread socketThread = new SocketThread(connectionSocket, inFromClient, outToClient);
-			Thread thread = new Thread(socketThread);
-			thread.start();  
-		}
-		*/
 	} 
 }
 
@@ -75,35 +60,34 @@ class OutConnections implements Runnable{
 
 
 class InSocketThread implements Runnable {
-	String clientSentence; 
-	String capitalizedSentence; 
+	String inSentence; 
 	Socket connectionSocket;
 	BufferedReader inFromClient;
 	DataOutputStream outToClient;
+	String user;
 
 	InSocketThread (Socket connectionSocket, BufferedReader inFromClient, DataOutputStream outToClient) {
 		this.connectionSocket = connectionSocket;
 		this.inFromClient = inFromClient;
 		this.outToClient = outToClient;
+		this.user = "";
 	} 
 
-	public void run() {
-		try{
-			// Registration
-			while (true){
-				clientSentence = inFromClient.readLine();
-				try{
-					String cmd = clientSentence;		// 15 = Length of "REGISTER TOSEND"
-					if (cmd.startsWith("REGISTER TOSEND ")){
-						String username = cmd.substring("REGISTER TOSEND ".length()).toLowerCase();
-						char[] chk = username.toCharArray();
-						boolean valid = true;
-						for (int i=0; i<chk.length; i++){
-							if ( !( ((int)chk[i] >= 97 && (int)chk[i] < 123) || ((int)chk[i] >= 48 && (int)chk[i] < 58) ) ){
-								valid = false;
-								break;
-							}
+	public void register() throws Exception{
+		// Registration
+		while (true){
+			inSentence = inFromClient.readLine();
+			try{
+				if (inSentence.startsWith("REGISTER TOSEND ")){
+					String username = inSentence.substring("REGISTER TOSEND ".length()).toLowerCase();
+					char[] chk = username.toCharArray();
+					boolean valid = true;
+					for (int i=0; i<chk.length; i++){
+						if ( !( ((int)chk[i] >= 97 && (int)chk[i] < 123) || ((int)chk[i] >= 48 && (int)chk[i] < 58) ) ){
+							valid = false;
+							break;
 						}
+<<<<<<< HEAD
 						if (!valid){
 							outToClient.writeBytes("ERROR 100 Malformed username\n\n");
 							continue;
@@ -118,77 +102,125 @@ class InSocketThread implements Runnable {
 						// Registration Successful Acknowledgement Message
 						outToClient.writeBytes("REGISTERED TOSEND " + username + "\n\n");
 						break;
-					}else{
-						throw new Exception();
-					}
-				}catch (Exception e){
-					outToClient.writeBytes("ERROR 101 No user registered\n\n");
+						// Throw away Extra \n
+						inFromClient.read();
+						break;
+				}else{
+					throw new Exception();
 				}
+			}catch (Exception e){
+				outToClient.writeBytes("ERROR 101 No user registered\n\n");
 			}
+		}
+	}
+
+	public void run() {
+		try{
+			// Register
+			register();
+
+			// Get Public Key
 
 			// Receive Chat Messages
 			while(true) { 
-				try {
-
-					clientSentence = inFromClient.readLine(); 
-
-					System.out.println(clientSentence);
-
-					capitalizedSentence = clientSentence.toUpperCase() + '\n'; 
-
-					outToClient.writeBytes(capitalizedSentence); 
-				} catch(Exception e) {
-					try {
-					connectionSocket.close();
-					} catch(Exception ee) { }
-					break;
+				try{
+					inSentence = inFromClient.readLine();
+					String username;
+					if (inSentence.startsWith("SEND ")){
+						username = inSentence.substring("SEND ".length()).toLowerCase();
+					}else{ 
+						throw new Exception();
+					}
+					inSentence = inFromClient.readLine();
+					int msgLength;
+					if (inSentence.startsWith("Content-length: ")){
+						msgLength = Integer.parseInt(inSentence.substring("Content-length: ".length() ) );
+					}else{ 
+						throw new Exception();
+					}
+					// outToClient.writeBytes(capitalizedSentence); 
+				}catch(Exception e) {
+					// If header is not complete
+					outToClient.writeBytes("ERROR 103 Header incomplete\n\n");
+					// Close Socket and re-register
 				}
 			}
 		}catch (Exception e){
 			System.out.println(e.getMessage());
+			// Close Socket in case of Error
+			try{
+				connectionSocket.close();
+			}catch(Exception ee) { }
 		}
 	}
 }
 
 class OutSocketThread implements Runnable {
-     String clientSentence; 
-     String capitalizedSentence; 
-     Socket connectionSocket;
-     BufferedReader inFromClient;
-     DataOutputStream outToClient;
-   
-     OutSocketThread (Socket connectionSocket, BufferedReader inFromClient, DataOutputStream outToClient) {
+	String inSentence;
+	Socket connectionSocket;
+	BufferedReader inFromClient;
+	DataOutputStream outToClient;
+
+	OutSocketThread (Socket connectionSocket, BufferedReader inFromClient, DataOutputStream outToClient) {
 	this.connectionSocket = connectionSocket;
-        this.inFromClient = inFromClient;
-        this.outToClient = outToClient;
-     } 
+	this.inFromClient = inFromClient;
+	this.outToClient = outToClient;
+	} 
 
-     public void run() {
-       while(true) { 
-	   try {
+	public void register() throws Exception{
+		// Registration
+		while (true){
+			inSentence = inFromClient.readLine();
+			try{
+				if (inSentence.startsWith("REGISTER TORECV ")){
+					String username = inSentence.substring("REGISTER TORECV ".length()).toLowerCase();
+					char[] chk = username.toCharArray();
+					boolean valid = true;
+					for (int i=0; i<chk.length; i++){
+						if ( !( ((int)chk[i] >= 97 && (int)chk[i] < 123) || ((int)chk[i] >= 48 && (int)chk[i] < 58) ) ){
+							valid = false;
+							break;
+						}
+					}
+					if (!valid){
+						outToClient.writeBytes("ERROR 100 Malformed username\n\n");
+						continue;
+					}
+					// Add User to registered users list
+					if (ServerChat.userSocketMap.get(username) == null){
+						UserData newUser = new UserData(null, connectionSocket);
+						ServerChat.userSocketMap.put(username, newUser);
+					}else{
+						ServerChat.userSocketMap.get(username).outSocket = connectionSocket;
+					}
+					// Registration Successful Acknowledgement Message
+					outToClient.writeBytes("REGISTERED TORECV " + username + "\n\n");
+					// Throw away Extra \n
+					inFromClient.read();
+					break;
+				}else{
+					throw new Exception();
+				}
+			}catch (Exception e){
+				outToClient.writeBytes("ERROR 101 No user registered\n\n");
+			}
+		}
+	}
 
-	           clientSentence = inFromClient.readLine(); 
-
-		   System.out.println(clientSentence);
-
-  	         capitalizedSentence = clientSentence.toUpperCase() + '\n'; 
-
-        	   outToClient.writeBytes(capitalizedSentence); 
-	   } catch(Exception e) {
-		try {
-			connectionSocket.close();
-		} catch(Exception ee) { }
-		break;
-	   }
-        } 
-    }
+	public void run() {
+		try{
+			register();
+		}catch (Exception e) {
+			System.out.println(e.getMessage());
+		}
+	}
 }
 
-class UserSockets {
+class UserData {
 	Socket inSocket;
 	Socket outSocket;
 
-	UserSockets(Socket inSock, Socket outSock){
+	UserData(Socket inSock, Socket outSock){
 		this.inSocket = inSock;
 		this.outSocket = outSock;
 	}
