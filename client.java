@@ -114,16 +114,28 @@ class inClient implements Runnable{
 
 				sentence = inFromUser.readLine();
 				if (!parseValid(sentence)){
-					break;
+					System.out.println("Invalid syntax. Type again.");
+					continue;
 				}
-				else{};
 
-				outToServer.writeBytes(sentence + '\n'); 
+				String[] data = str.split(" ", 2);
+				data[0] = data[0].substring(1);
 
-				modifiedSentence = inFromServer.readLine(); 
+				String output = "SEND " + data[0] + "\n" + "Content-length: "+ data[1].length() +"\n\n" + data[1];
 
-				System.out.println("FROM SERVER: " + modifiedSentence); 
+				outToServer.writeBytes(output); 
 
+				String response = inFromServer.readLine();
+
+				if (response == "SENT " + data[0] + "\n\n"){
+					System.out.println("Message Sent");
+				} 
+				else if (response == "ERROR 102 Unable to send\n"){
+					System.out.println("Unable to send message");
+				}
+				else if (response == "ERROR 102 Unable to send\n"){
+					System.out.println("Unable to send message");
+				}
 			}
 		}catch (Exception e){
 			System.out.println(e.getMessage());
