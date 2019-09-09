@@ -25,6 +25,8 @@ class InConnections implements Runnable{
 			while(true) { 
 				Socket connectionSocket = inSocket.accept();			// Wait for Incoming Connection
 				
+				System.out.println("In Client Conneted");	// Debug
+
 				BufferedReader inFromClient = new BufferedReader(new InputStreamReader(connectionSocket.getInputStream()));		// Input Stream
 				DataOutputStream outToClient = new DataOutputStream(connectionSocket.getOutputStream()); 		// Output Stream (Used for backend)
 
@@ -44,6 +46,8 @@ class OutConnections implements Runnable{
 			ServerSocket outSocket = new ServerSocket(51235);		// TX Port
 			while(true) { 
 				Socket connectionSocket = outSocket.accept();			// Wait for Incoming Connection
+
+				System.out.println("Out Client Conneted");	// Debug
 
 				BufferedReader inFromClient = new BufferedReader(new InputStreamReader(connectionSocket.getInputStream()));		// Input Stream (Used for backend)
 				DataOutputStream outToClient = new DataOutputStream(connectionSocket.getOutputStream()); 		// Output Stream
@@ -81,30 +85,34 @@ class InSocketThread implements Runnable {
 				if (inSentence.startsWith("REGISTER TOSEND ")){
 					String username = inSentence.substring("REGISTER TOSEND ".length()).toLowerCase();
 					char[] chk = username.toCharArray();
+
 					boolean valid = true;
+					if (chk.length == 0){
+						valid = false;
+					}
 					for (int i=0; i<chk.length; i++){
 						if ( !( ((int)chk[i] >= 97 && (int)chk[i] < 123) || ((int)chk[i] >= 48 && (int)chk[i] < 58) ) ){
 							valid = false;
 							break;
 						}
-<<<<<<< HEAD
-						if (!valid){
-							outToClient.writeBytes("ERROR 100 Malformed username\n\n");
-							continue;
-						}
-						// Add User to registered users list
-						if (ServerChat.userSocketMap.get(username) == null){
-							UserSockets newUser = new UserSockets(connectionSocket, null);
-							ServerChat.userSocketMap.put(username, newUser);
-						}else{
-							ServerChat.userSocketMap.get(username).inSocket = connectionSocket;
-						}
-						// Registration Successful Acknowledgement Message
-						outToClient.writeBytes("REGISTERED TOSEND " + username + "\n\n");
-						break;
-						// Throw away Extra \n
-						inFromClient.read();
-						break;
+					}
+					if (!valid){
+						outToClient.writeBytes("ERROR 100 Malformed username\n\n");
+						continue;
+					}
+					// Add User to registered users list
+					if (ServerChat.userSocketMap.get(username) == null){
+						UserData newUser = new UserData(connectionSocket, null);
+						ServerChat.userSocketMap.put(username, newUser);
+					}else{
+						ServerChat.userSocketMap.get(username).inSocket = connectionSocket;
+					}
+					this.user = username;
+					// Registration Successful Acknowledgement Message
+					outToClient.writeBytes("REGISTERED TOSEND " + username + "\n\n");
+					// Throw away Extra \n
+					inFromClient.read();
+					break;
 				}else{
 					throw new Exception();
 				}
@@ -117,32 +125,49 @@ class InSocketThread implements Runnable {
 	public void run() {
 		try{
 			// Register
+			System.out.println("Client In Thread Created");	// Debug
 			register();
-
+			System.out.println("Input Registration Completed"); // Debug
 			// Get Public Key
 
 			// Receive Chat Messages
 			while(true) { 
 				try{
 					inSentence = inFromClient.readLine();
-					String username;
+					String recv_username;
 					if (inSentence.startsWith("SEND ")){
-						username = inSentence.substring("SEND ".length()).toLowerCase();
+						recv_username = inSentence.substring("SEND ".length()).toLowerCase();
 					}else{ 
 						throw new Exception();
 					}
-					inSentence = inFromClient.readLine();
+					inSentence = inFromClient.readLine();	// Read Content Length
 					int msgLength;
 					if (inSentence.startsWith("Content-length: ")){
 						msgLength = Integer.parseInt(inSentence.substring("Content-length: ".length() ) );
 					}else{ 
 						throw new Exception();
 					}
+					inFromClient.readLine();	// Read extra \n
+					char[] inp = new char[msgLength];
+					inFromClient.read(inp,0,msgLength);
+					// for (int i=0; i<msgLength; i++){
+					// 	inp[i] = inFromClient.read();
+					// }
+					String message = new String(inp);
+					System.out.println("Recipient: " + recv_username + " Message: " + message); // Debug
+					int status = forward_message(recv_username, message, msgLength);	
+					if (status == -1){
+						outToClient.writeBytes("ERROR 102 Unable to send\n\n");
+					}else if(status == 0){
+						outToClient.writeBytes("SENT "+recv_username + "\n\n");
+					}
 					// outToClient.writeBytes(capitalizedSentence); 
 				}catch(Exception e) {
 					// If header is not complete
 					outToClient.writeBytes("ERROR 103 Header incomplete\n\n");
 					// Close Socket and re-register
+					connectionSocket.close();
+					break;
 				}
 			}
 		}catch (Exception e){
@@ -150,7 +175,39 @@ class InSocketThread implements Runnable {
 			// Close Socket in case of Error
 			try{
 				connectionSocket.close();
+				System.out.println("Client Disconnected"); // Debug
 			}catch(Exception ee) { }
+		}
+	}
+
+	public int forward_message(String username, String message, int msgLength){
+		try{
+			if (ServerChat.userSocketMap.get(username) == null){
+				return -1;
+			}
+			if (ServerChat.userSocketMap.get(username).outSocket == null){
+				return -1;
+			}
+
+			Socket outSocket = ServerChat.userSocketMap.get(username).outSocket;
+			BufferedReader inFromClient = new BufferedReader(new InputStreamReader(outSocket.getInputStream()));		// Input Stream (Used for backend)
+			DataOutputStream outToClient = new DataOutputStream(outSocket.getOutputStream()); 		// Output Stream
+
+			outToClient.writeBytes("FORWARD " + this.user + "\n");
+			outToClient.writeBytes("Content-length: " + msgLength + "\n\n");
+			outToClient.writeBytes(message);
+			String inSentence = inFromClient.readLine();
+			if (inSentence.equals("RECEIVED " + this.user)){
+				inFromClient.readLine(); // throw away extra \n
+				System.out.println("Msg Fw Success!\n"); // Debug
+				return 0;
+			}else{
+				System.out.println("Recv from fw client: " + inSentence); // Debug
+				return -1;
+			}
+		}catch (Exception e){
+			System.out.println("Msg Fw Failed");
+			return -1;
 		}
 	}
 }
@@ -176,6 +233,9 @@ class OutSocketThread implements Runnable {
 					String username = inSentence.substring("REGISTER TORECV ".length()).toLowerCase();
 					char[] chk = username.toCharArray();
 					boolean valid = true;
+					if (chk.length == 0){
+						valid = false;
+					}
 					for (int i=0; i<chk.length; i++){
 						if ( !( ((int)chk[i] >= 97 && (int)chk[i] < 123) || ((int)chk[i] >= 48 && (int)chk[i] < 58) ) ){
 							valid = false;
@@ -209,7 +269,9 @@ class OutSocketThread implements Runnable {
 
 	public void run() {
 		try{
+			System.out.println("Client Out Thread Created"); // Debug
 			register();
+			System.out.println("Output Registration Completed"); // Debug
 		}catch (Exception e) {
 			System.out.println(e.getMessage());
 		}
