@@ -3,12 +3,61 @@ import java.net.*;
 import java.util.HashMap;
 import java.util.concurrent.ConcurrentHashMap;
 
+import java.security.KeyFactory;
+import java.security.KeyPair;
+import java.security.KeyPairGenerator;
+import java.security.NoSuchAlgorithmException;
+import java.security.NoSuchProviderException;
+import java.security.PrivateKey;
+import java.security.PublicKey;
+import java.security.SecureRandom;
+import java.security.spec.PKCS8EncodedKeySpec;
+import java.security.spec.X509EncodedKeySpec;
+import javax.crypto.Cipher;
+
+
 class ServerChat {
 	// Global HashMap to keep track of Socket Objects
 	static ConcurrentHashMap<String, UserData> userSocketMap =  new ConcurrentHashMap<>();	
-	
+	static int mode;
+
+
+	// Encryption
+	private static final String ALGORITHM = "RSA";
+
+	public static byte[] encrypt(byte[] publicKey, byte[] inputData) throws Exception {
+		PublicKey key = KeyFactory.getInstance(ALGORITHM).generatePublic(new X509EncodedKeySpec(publicKey));
+		Cipher cipher = Cipher.getInstance(ALGORITHM);
+		cipher.init(Cipher.ENCRYPT_MODE, key);
+		byte[] encryptedBytes = cipher.doFinal(inputData);
+		return encryptedBytes;
+	}
+
+	public static byte[] decrypt(byte[] privateKey, byte[] inputData) throws Exception {
+		PrivateKey key = KeyFactory.getInstance(ALGORITHM).generatePrivate(new PKCS8EncodedKeySpec(privateKey));
+
+		Cipher cipher = Cipher.getInstance(ALGORITHM);
+		cipher.init(Cipher.DECRYPT_MODE, key);
+
+		byte[] decryptedBytes = cipher.doFinal(inputData);
+
+		return decryptedBytes;
+	}
+
+	public static KeyPair generateKeyPair() throws NoSuchAlgorithmException, NoSuchProviderException {
+		KeyPairGenerator keyGen = KeyPairGenerator.getInstance(ALGORITHM);
+		SecureRandom random = SecureRandom.getInstance("SHA1PRNG", "SUN");
+		// 512 is keysize
+		keyGen.initialize(512, random);
+		KeyPair generateKeyPair = keyGen.generateKeyPair();
+		return generateKeyPair;
+	}
+
 	// Create 2 threads for 2 TCP connections
 	public static void main(String argv[]) throws Exception {
+		if (argv.length == 1){
+      mode = Integer.parseInt(argv[0]);
+		}
 		InConnections inConnThreadGen = new InConnections();
 		OutConnections outConnThreadGen = new OutConnections();
 		Thread inThread = new Thread(inConnThreadGen);
@@ -135,6 +184,24 @@ class InSocketThread implements Runnable {
 				try{
 					inSentence = inFromClient.readLine();
 					String recv_username;
+					if (ServerChat.mode == 2 || ServerChat.mode == 3){
+						if (inSentence.startsWith("FETCHKEY ")){
+							recv_username = inSentence.substring("FETCHKEY ".length()).toLowerCase();
+						}else{
+							outToClient.writeBytes("ERROR 102 Unable to send\n\n");
+							continue;
+						}
+						inSentence = inFromClient.readLine(); // Throw away extra \n
+						// Check if Key Exists
+						if (ServerChat.userSocketMap.get(recv_username) == null){
+							outToClient.writeBytes("ERROR 102 Unable to send\n\n");
+							continue;
+						}else{
+							String key = ServerChat.userSocketMap.get(recv_username).key;
+							outToClient.writeBytes("RESPKEY " + key + "\n\n");
+						}
+						inSentence = inFromClient.readLine();
+					}
 					if (inSentence.startsWith("SEND ")){
 						recv_username = inSentence.substring("SEND ".length()).toLowerCase();
 					}else{ 
@@ -253,10 +320,22 @@ class OutSocketThread implements Runnable {
 					}else{
 						ServerChat.userSocketMap.get(username).outSocket = connectionSocket;
 					}
-					// Registration Successful Acknowledgement Message
-					outToClient.writeBytes("REGISTERED TORECV " + username + "\n\n");
+
 					// Throw away Extra \n
 					inFromClient.read();
+
+					// Get Key from User
+					if (ServerChat.mode == 2 || ServerChat.mode == 3){
+						outToClient.writeBytes("SEND KEY\n\n");
+						inSentence = inFromClient.readLine();
+						inSentence += inFromClient.readLine();
+						if (inSentence.startsWith("REGISTERKEY ")){
+							ServerChat.userSocketMap.get(username).key = inSentence.substring("REGISTERKEY ".length());
+						}
+					}
+
+					// Registration Successful Acknowledgement Message
+					outToClient.writeBytes("REGISTERED TORECV " + username + "\n\n");
 					break;
 				}else{
 					throw new Exception();
@@ -281,6 +360,7 @@ class OutSocketThread implements Runnable {
 class UserData {
 	Socket inSocket;
 	Socket outSocket;
+	String key;
 
 	UserData(Socket inSock, Socket outSock){
 		this.inSocket = inSock;
