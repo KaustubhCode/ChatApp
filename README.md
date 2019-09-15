@@ -42,3 +42,8 @@ Alternatively, go to class directory in project folder and run the following
 ### Notes:
 
 - Mode Checking has not been added to keep message structure consistent with what is given. Mode mismatch between clients & server could lead to unexpected results.
+
+### Contributors
+
+- Abhay Saxena
+- Kaustubh Prakash
