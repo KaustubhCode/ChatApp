@@ -37,4 +37,4 @@ For each client open a new terminal and run one of the following from project di
 
 Alternatively, go to class directory in project folder and run the following
 
-> java ServerChat 3
+> java TCPClient 3 User01 localhost
