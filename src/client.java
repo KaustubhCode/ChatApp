@@ -343,7 +343,11 @@ class outClient implements Runnable{
 			BufferedReader inFromServer = new BufferedReader(new InputStreamReader(connectionSocket.getInputStream())); 
 
 			while(true) {
-				sentence = inFromUser.readLine(); 
+				sentence = inFromUser.readLine();
+				if (sentence.equals("SIGNOUT")){
+					outToServer.writeBytes("SIGNOUT\n");
+					System.exit(0);
+				}
         if (!parseValid(sentence)){
           System.out.println("Invalid syntax. Type again.");
           continue;

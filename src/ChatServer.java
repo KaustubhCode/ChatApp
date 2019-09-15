@@ -185,6 +185,13 @@ class InSocketThread implements Runnable {
 			while(true) { 
 				try{
 					inSentence = inFromClient.readLine();
+					if (inSentence.equals("SIGNOUT")){
+						try{
+							connectionSocket.close();
+							System.out.println("### User Signed-Out: " + this.user + " ###"); // Debug
+							break;
+						}catch(Exception ee) { }
+					}
 					String recv_username;
 					if (ServerChat.mode == 2 || ServerChat.mode == 3){
 						if (inSentence.startsWith("FETCHKEY ")){
