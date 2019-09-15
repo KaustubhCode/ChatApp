@@ -55,6 +55,7 @@ class ServerChat {
 
 	// Create 2 threads for 2 TCP connections
 	public static void main(String argv[]) throws Exception {
+		System.out.println("=== Server Initializing ===");
 		if (argv.length == 1){
       mode = Integer.parseInt(argv[0]);
 		}
@@ -64,6 +65,7 @@ class ServerChat {
 		Thread outThread = new Thread(outConnThreadGen);
 		inThread.start();
 		outThread.start();
+		System.out.println("=== Server Up and Running ===");
 	} 
 }
 
@@ -74,7 +76,7 @@ class InConnections implements Runnable{
 			while(true) { 
 				Socket connectionSocket = inSocket.accept();			// Wait for Incoming Connection
 				
-				System.out.println("In Client Conneted");	// Debug
+				// System.out.println("In Client Conneted");	// Debug
 
 				BufferedReader inFromClient = new BufferedReader(new InputStreamReader(connectionSocket.getInputStream()));		// Input Stream
 				DataOutputStream outToClient = new DataOutputStream(connectionSocket.getOutputStream()); 		// Output Stream (Used for backend)
@@ -96,7 +98,7 @@ class OutConnections implements Runnable{
 			while(true) { 
 				Socket connectionSocket = outSocket.accept();			// Wait for Incoming Connection
 
-				System.out.println("Out Client Conneted");	// Debug
+				// System.out.println("Out Client Conneted");	// Debug
 
 				BufferedReader inFromClient = new BufferedReader(new InputStreamReader(connectionSocket.getInputStream()));		// Input Stream (Used for backend)
 				DataOutputStream outToClient = new DataOutputStream(connectionSocket.getOutputStream()); 		// Output Stream
@@ -174,9 +176,9 @@ class InSocketThread implements Runnable {
 	public void run() {
 		try{
 			// Register
-			System.out.println("Client In Thread Created");	// Debug
+			// System.out.println("### New Client ###");	// Debug
 			register();
-			System.out.println("Input Registration Completed"); // Debug
+			System.out.println("### User Registered (In): " + this.user + " ###"); // Debug
 			// Get Public Key
 
 			// Receive Chat Messages
@@ -207,6 +209,26 @@ class InSocketThread implements Runnable {
 					}else{ 
 						throw new Exception();
 					}
+					// For Mode 3
+					String signString = "";
+					if (ServerChat.mode == 3){
+						String sKey;
+						inSentence = inFromClient.readLine();
+						if (inSentence.startsWith("SIGNKEY ")){
+							sKey = inSentence;
+						}else{ 
+							throw new Exception();
+						}
+						String sHash;
+						inSentence = inFromClient.readLine();
+						if (inSentence.startsWith("SIGN ")){
+							sHash = inSentence;
+						}else{ 
+							throw new Exception();
+						}
+						signString = sKey + "\n" + sHash + "\n";
+					}
+
 					inSentence = inFromClient.readLine();	// Read Content Length
 					int msgLength;
 					if (inSentence.startsWith("Content-length: ")){
@@ -221,8 +243,8 @@ class InSocketThread implements Runnable {
 					// 	inp[i] = inFromClient.read();
 					// }
 					String message = new String(inp);
-					System.out.println("Recipient: " + recv_username + " Message: " + message); // Debug
-					int status = forward_message(recv_username, message, msgLength);	
+					System.out.println("-=- Recipient: " + recv_username + " Message: " + message); // Debug
+					int status = forward_message(recv_username, signString, message, msgLength);	
 					if (status == -1){
 						outToClient.writeBytes("ERROR 102 Unable to send\n\n");
 					}else if(status == 0){
@@ -238,16 +260,16 @@ class InSocketThread implements Runnable {
 				}
 			}
 		}catch (Exception e){
-			System.out.println(e.getMessage());
+			// System.out.println(e.getMessage());
 			// Close Socket in case of Error
 			try{
 				connectionSocket.close();
-				System.out.println("Client Disconnected"); // Debug
+				System.out.println("### User Disconnected: " + this.user + " ###"); // Debug
 			}catch(Exception ee) { }
 		}
 	}
 
-	public int forward_message(String username, String message, int msgLength){
+	public int forward_message(String username, String signStr, String message, int msgLength){
 		try{
 			if (ServerChat.userSocketMap.get(username) == null){
 				return -1;
@@ -260,20 +282,20 @@ class InSocketThread implements Runnable {
 			BufferedReader inFromClient = new BufferedReader(new InputStreamReader(outSocket.getInputStream()));		// Input Stream (Used for backend)
 			DataOutputStream outToClient = new DataOutputStream(outSocket.getOutputStream()); 		// Output Stream
 
-			outToClient.writeBytes("FORWARD " + this.user + "\n");
+			outToClient.writeBytes("FORWARD " + this.user + "\n" + signStr);
 			outToClient.writeBytes("Content-length: " + msgLength + "\n\n");
 			outToClient.writeBytes(message);
 			String inSentence = inFromClient.readLine();
 			if (inSentence.equals("RECEIVED " + this.user)){
 				inFromClient.readLine(); // throw away extra \n
-				System.out.println("Msg Fw Success!\n"); // Debug
+				System.out.println("--- Success: Message Forward"); // Debug
 				return 0;
 			}else{
 				System.out.println("Recv from fw client: " + inSentence); // Debug
 				return -1;
 			}
 		}catch (Exception e){
-			System.out.println("Msg Fw Failed");
+			System.out.println("--- Failed: Message Forward ---");
 			return -1;
 		}
 	}
@@ -284,6 +306,7 @@ class OutSocketThread implements Runnable {
 	Socket connectionSocket;
 	BufferedReader inFromClient;
 	DataOutputStream outToClient;
+	String user;
 
 	OutSocketThread (Socket connectionSocket, BufferedReader inFromClient, DataOutputStream outToClient) {
 	this.connectionSocket = connectionSocket;
@@ -334,6 +357,7 @@ class OutSocketThread implements Runnable {
 						}
 					}
 
+					this.user = username;
 					// Registration Successful Acknowledgement Message
 					outToClient.writeBytes("REGISTERED TORECV " + username + "\n\n");
 					break;
@@ -348,9 +372,9 @@ class OutSocketThread implements Runnable {
 
 	public void run() {
 		try{
-			System.out.println("Client Out Thread Created"); // Debug
+			// System.out.println("Client Out Thread Created"); // Debug
 			register();
-			System.out.println("Output Registration Completed"); // Debug
+			System.out.println("### User Registered (Out): " + this.user + " ###"); // Debug
 		}catch (Exception e) {
 			System.out.println(e.getMessage());
 		}
@@ -361,6 +385,7 @@ class UserData {
 	Socket inSocket;
 	Socket outSocket;
 	String key;
+	String sign_key;
 
 	UserData(Socket inSock, Socket outSock){
 		this.inSocket = inSock;
