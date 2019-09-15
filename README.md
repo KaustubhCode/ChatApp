@@ -46,7 +46,8 @@ The client recognizes following commands
 - Sending message to another user: `@[username] [message]`
 > @user01 Hello
 
-- Signing Out: 'SIGNOUT'
+- Signing Out:
+> SIGNOUT
 
 ### Notes:
 
