@@ -16,7 +16,7 @@ From Project Directory Run:
 
 Open a new terminal and run the following command from project directory (Tested on Ubuntu 16.04): `java -cp class: ServerChat (mode)`
 
-> java -cp class: ServerChat 1
+> java -cp class: ServerChat 3
 
 Alternatively, go to class directory in project folder and run the following
 
@@ -30,7 +30,7 @@ For each client open a new terminal and run one of the following from project di
 > java -cp class: TCPClient User01
 
 - For running on local with different modes:  `java -cp class: TCPClient (mode) (username)`
-> java -cp class: TCPClient 2 User01
+> java -cp class: TCPClient 3 User01
 
 - For connecting to server on known IP with different modes:  `java -cp class: TCPClient (mode) (username) (server_ip)`
 > java -cp class: TCPClient 3 User01 localhost
@@ -38,3 +38,7 @@ For each client open a new terminal and run one of the following from project di
 Alternatively, go to class directory in project folder and run the following
 
 > java TCPClient 3 User01 localhost
+
+### Notes:
+
+- Mode Checking has not been added to keep message structure consistent with what is given. Mode mismatch between clients & server could lead to unexpected results.

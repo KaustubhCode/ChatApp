@@ -174,10 +174,9 @@ class TCPClient {
 			if (output.equals("ERROR 100 Malformed username")){
 				System.out.println(output);
 				System.exit(0);
-			}
-
-			System.out.println("### Registered on Server(RECV) ###");  
+			}	  
 		}
+		System.out.println("### Registered on Server(RECV) ###");
 
 		inClient inConnThread = new inClient(clientSocketIn, username, serverIP);
 		Thread inThread = new Thread(inConnThread);
@@ -291,6 +290,7 @@ class inClient implements Runnable{
 			}
 		}catch (Exception e){
 			System.out.println(e.getMessage());
+			e.printStackTrace();
 		}
 	}
 }
@@ -313,7 +313,7 @@ class outClient implements Runnable{
     if (!sentence.startsWith("@")){ return false; }
     String[] data = sentence.split(" ", 2);
     boolean valid = true;
-    char[] chk = data[0].substring(1).toCharArray();
+    char[] chk = data[0].substring(1).toLowerCase().toCharArray();
     if (chk.length == 0){
       valid = false;
     }
@@ -401,6 +401,7 @@ class outClient implements Runnable{
 			}
 		}catch (Exception e){
 			System.out.println(e.getMessage());
+			e.printStackTrace();
 		}
 	}
 }
