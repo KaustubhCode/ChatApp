@@ -44,8 +44,9 @@ Alternatively, go to class directory in project folder and run the following
 The client recognizes following commands
 
 - Sending message to another user: `@[username] [message]`
+> @user01 Hello
 
-- Signing Out: 
+- Signing Out: 'SIGNOUT'
 
 ### Notes:
 
