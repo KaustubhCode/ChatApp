@@ -14,9 +14,9 @@ From Project Directory Run:
 
 ### To Run Server:
 
-Open a new terminal and run the following command from project directory (Tested on Ubuntu 16.04): `java java -cp class: ServerChat (mode)`
+Open a new terminal and run the following command from project directory (Tested on Ubuntu 16.04): `java -cp class: ServerChat (mode)`
 
-> java java -cp class: ServerChat 1
+> java -cp class: ServerChat 1
 
 Alternatively, go to class directory in project folder and run the following
 

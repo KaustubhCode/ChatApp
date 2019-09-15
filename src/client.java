@@ -77,21 +77,21 @@ class TCPClient {
 	    if (argv.length == 1){
 	      mode = 1;
 	      System.out.println("Mode: " + mode);
-	      username = argv[0];
+	      username = argv[0].toLowerCase();
 	      serverIP = "localhost";
 	      System.out.println("User Name: "+username);
 	    }
 			if (argv.length == 2){
 	      mode = Integer.parseInt(argv[0]);
 	      System.out.println("Mode: " + mode);
-				username = argv[1];
+				username = argv[1].toLowerCase();
 				serverIP = "localhost";
 	      System.out.println("User Name: "+username);
 			}
 			else if (argv.length == 3){
 	      mode = Integer.parseInt(argv[0]);
 	      System.out.println("Mode: " + mode);
-	      username = argv[1];
+	      username = argv[1].toLowerCase();
 				// if (checkIP(argv[2])){System.out.println("Incorrect IP address"); return;}
 				serverIP = argv[2];
 	      System.out.println("Server IP: " + serverIP);
@@ -134,9 +134,8 @@ class TCPClient {
 				System.out.println(output);
 				System.exit(0);
 			}
-
-			System.out.println("### Registered on Server(SEND) ###"); 
 		}
+		System.out.println("### Registered on Server(SEND) ###");
 
 		outClient outConnThread = new outClient(clientSocketOut, username, serverIP);
 		Thread outThread = new Thread(outConnThread);
