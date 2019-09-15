@@ -39,6 +39,14 @@ Alternatively, go to class directory in project folder and run the following
 
 > java TCPClient 3 User01 localhost
 
+### Client Commands
+
+The client recognizes following commands
+
+- Sending message to another user: `@[username] [message]`
+
+- Signing Out: 
+
 ### Notes:
 
 - Mode Checking has not been added to keep message structure consistent with what is given. Mode mismatch between clients & server could lead to unexpected results.

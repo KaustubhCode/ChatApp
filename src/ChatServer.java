@@ -186,6 +186,8 @@ class InSocketThread implements Runnable {
 				try{
 					inSentence = inFromClient.readLine();
 					if (inSentence.equals("SIGNOUT")){
+						// Delete Client Entry from hashmap
+						ServerChat.userSocketMap.remove(this.user);
 						try{
 							connectionSocket.close();
 							System.out.println("### User Signed-Out: " + this.user + " ###"); // Debug
@@ -267,11 +269,12 @@ class InSocketThread implements Runnable {
 				}
 			}
 		}catch (Exception e){
-			// System.out.println(e.getMessage());
 			// Close Socket in case of Error
 			try{
 				connectionSocket.close();
 				System.out.println("### User Disconnected: " + this.user + " ###"); // Debug
+				// Delete Client Entry from hashmap
+				ServerChat.userSocketMap.remove(this.user);
 			}catch(Exception ee) { }
 		}
 	}
